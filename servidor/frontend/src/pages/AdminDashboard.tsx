@@ -530,127 +530,130 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToChat }) 
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Topo / Barra de Navegação Superior */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-4 md:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBackToChat}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
-            title="Voltar para a área de chats"
-          >
-            <ArrowLeft size={16} />
-            <span className="hidden sm:inline">Voltar ao Chat</span>
-          </button>
+    <div className="h-screen w-full bg-slate-950 text-slate-100 flex flex-col overflow-y-auto">
+      {/* Topo e Barra de Navegação Fixos com Rolagem Suave Abaixo */}
+      <div className="sticky top-0 z-30 shrink-0 bg-slate-950/90 backdrop-blur-md">
+        {/* Topo / Barra de Navegação Superior */}
+        <header className="border-b border-slate-800/80 bg-slate-900/70 px-4 md:px-8 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBackToChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
+              title="Voltar para a área de chats"
+            >
+              <ArrowLeft size={16} />
+              <span className="hidden sm:inline">Voltar ao Chat</span>
+            </button>
 
-          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
+            <div className="h-5 w-px bg-slate-800 hidden sm:block" />
 
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/logo-senai.png"
-              alt="SENAI"
-              className="h-7 w-auto object-contain rounded"
-            />
-            <div>
-              <h1 className="text-base font-bold text-white flex items-center gap-2 leading-tight">
-                Painel Administrativo
-                <span className="px-2 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-[10px] uppercase font-semibold">
-                  SENAI 6.01
-                </span>
-              </h1>
-              <p className="text-[11px] text-slate-400">
-                Gestão Institucional, Lixeira Exclusiva e Trilha de Auditoria
-              </p>
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/logo-senai.png"
+                alt="SENAI"
+                className="h-7 w-auto object-contain rounded"
+              />
+              <div>
+                <h1 className="text-base font-bold text-white flex items-center gap-2 leading-tight">
+                  Painel Administrativo
+                  <span className="px-2 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-[10px] uppercase font-semibold">
+                    SENAI 6.01
+                  </span>
+                </h1>
+                <p className="text-[11px] text-slate-400">
+                  Gestão Institucional, Lixeira Exclusiva e Trilha de Auditoria
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => loadData(true)}
-            disabled={isRefreshing || isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">Atualizar</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => loadData(true)}
+              disabled={isRefreshing || isLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+              <span className="hidden sm:inline">Atualizar</span>
+            </button>
 
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-rose-400 flex items-center justify-center font-bold text-xs text-white shadow-md shadow-brand-600/20">
-            {user?.name ? user.name.charAt(0).toUpperCase() : "A"}
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-rose-400 flex items-center justify-center font-bold text-xs text-white shadow-md shadow-brand-600/20">
+              {user?.name ? user.name.charAt(0).toUpperCase() : "A"}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Navegação por Abas */}
-      <div className="border-b border-slate-800/80 bg-slate-900/40 px-4 md:px-8">
-        <div className="flex gap-2 overflow-x-auto py-2">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              activeTab === "overview"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Activity size={15} />
-            Visão Geral & Métricas
-          </button>
+        {/* Navegação por Abas */}
+        <div className="border-b border-slate-800/80 bg-slate-900/50 px-4 md:px-8">
+          <div className="flex gap-2 overflow-x-auto py-2">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                activeTab === "overview"
+                  ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+            >
+              <Activity size={15} />
+              Visão Geral & Métricas
+            </button>
 
-          <button
-            onClick={() => setActiveTab("users")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              activeTab === "users"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Users size={15} />
-            Usuários ({users.length})
-          </button>
+            <button
+              onClick={() => setActiveTab("users")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                activeTab === "users"
+                  ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+            >
+              <Users size={15} />
+              Usuários ({users.length})
+            </button>
 
-          <button
-            onClick={() => setActiveTab("trash")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              activeTab === "trash"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Trash2 size={15} />
-            Lixeira do Sistema ({deletedItems.length})
-            {deletedItems.length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-            )}
-          </button>
+            <button
+              onClick={() => setActiveTab("trash")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                activeTab === "trash"
+                  ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+            >
+              <Trash2 size={15} />
+              Lixeira do Sistema ({deletedItems.length})
+              {deletedItems.length > 0 && (
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+              )}
+            </button>
 
-          <button
-            onClick={() => setActiveTab("audit")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              activeTab === "audit"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <History size={15} />
-            Trilha de Auditoria ({auditLogs.length})
-          </button>
+            <button
+              onClick={() => setActiveTab("audit")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                activeTab === "audit"
+                  ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+            >
+              <History size={15} />
+              Trilha de Auditoria ({auditLogs.length})
+            </button>
 
-          <button
-            onClick={() => setActiveTab("resources")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              activeTab === "resources"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Server size={15} />
-            Recursos do Servidor
-          </button>
+            <button
+              onClick={() => setActiveTab("resources")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                activeTab === "resources"
+                  ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+            >
+              <Server size={15} />
+              Recursos do Servidor
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Conteúdo Principal */}
-      <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+      {/* Conteúdo Principal com Rolagem Suave */}
+      <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto space-y-6 pb-20">
         {/* Notificações de Ação */}
         {notification && (
           <div

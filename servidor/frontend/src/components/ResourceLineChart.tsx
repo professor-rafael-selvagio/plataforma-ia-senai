@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 export interface ChartDataPoint {
   timeLabel: string;
@@ -21,6 +22,9 @@ export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({
   subtitle,
 }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+
   const [visibleSeries, setVisibleSeries] = useState<{
     cpu: boolean;
     memory: boolean;
@@ -31,12 +35,62 @@ export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({
     disk: true,
   });
 
-  const width = 800;
-  const height = 260;
-  const paddingLeft = 45;
+  // Alterna o modo tela cheia (usando Fullscreen API nativa com fallback para overlay CSS)
+  const toggleFullscreen = async () => {
+    const elem = chartContainerRef.current;
+    if (!elem) return;
+
+    if (!document.fullscreenElement) {
+      try {
+        if (elem.requestFullscreen) {
+          await elem.requestFullscreen();
+        }
+      } catch (err) {
+        console.warn("Fullscreen request error, usando fallback overlay", err);
+      }
+      setIsFullscreen(true);
+    } else {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      } catch (err) {
+        console.warn("Exit fullscreen error", err);
+      }
+      setIsFullscreen(false);
+    }
+  };
+
+  // Monitora evento nativo de fullscreen e tecla ESC
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentElemFullscreen = document.fullscreenElement === chartContainerRef.current;
+      setIsFullscreen(isCurrentElemFullscreen);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullscreen) {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+        setIsFullscreen(false);
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullscreen]);
+
+  const width = isFullscreen ? 1100 : 800;
+  const height = isFullscreen ? 460 : 260;
+  const paddingLeft = isFullscreen ? 55 : 45;
   const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 40;
+  const paddingTop = isFullscreen ? 30 : 20;
+  const paddingBottom = isFullscreen ? 45 : 40;
 
   const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
@@ -77,7 +131,14 @@ export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({
   const hoveredPoint = hoverIndex !== null && data[hoverIndex] ? data[hoverIndex] : null;
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm space-y-4">
+    <div
+      ref={chartContainerRef}
+      className={`bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm space-y-4 transition-all ${
+        isFullscreen
+          ? "fixed inset-0 z-[100] w-screen h-screen bg-slate-950 p-6 md:p-8 flex flex-col justify-between overflow-y-auto rounded-none border-none shadow-2xl"
+          : ""
+      }`}
+    >
       {/* Topo do Gráfico com Título e Legenda Interativa */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -89,7 +150,7 @@ export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({
           {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
         </div>
 
-        {/* Legenda com botões para ativar/desativar séries */}
+        {/* Legenda com botões para ativar/desativar séries e Botão Tela Cheia */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <button
             type="button"
@@ -147,14 +208,44 @@ export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({
               </span>
             )}
           </button>
+
+          <div className="h-4 w-px bg-slate-800 hidden sm:block mx-0.5" />
+
+          {/* Botão de Tela Cheia (Fullscreen) */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+              isFullscreen
+                ? "bg-brand-500/20 border-brand-500/40 text-brand-300 font-semibold shadow-sm"
+                : "bg-slate-800/60 hover:bg-slate-700/80 border-slate-700/60 text-slate-300 hover:text-white"
+            }`}
+            title={isFullscreen ? "Sair da Tela Cheia (Esc)" : "Visualizar Gráfico em Tela Cheia"}
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 size={13} className="text-brand-400" />
+                <span>Sair da Tela Cheia</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 size={13} className="text-slate-400" />
+                <span>Tela Cheia</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 
       {/* Área do Gráfico SVG */}
-      <div className="relative w-full overflow-hidden select-none">
+      <div
+        className={`relative w-full overflow-hidden select-none ${
+          isFullscreen ? "flex-1 flex items-center justify-center my-auto min-h-[300px]" : ""
+        }`}
+      >
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-auto overflow-visible"
+          className={`w-full ${isFullscreen ? "h-full max-h-[65vh]" : "h-auto"} overflow-visible`}
           onMouseLeave={() => setHoverIndex(null)}
         >
           <defs>
@@ -389,6 +480,33 @@ export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({
           </div>
         )}
       </div>
+
+      {/* Cards de Resumo Rápido no Modo Tela Cheia */}
+      {isFullscreen && latestPoint && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-800/80">
+          <div className="bg-slate-900/80 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between">
+            <div>
+              <span className="text-[11px] text-slate-400 block">Processamento (CPU Atual)</span>
+              <span className="text-base font-bold font-mono text-sky-400">{latestPoint.cpu}%</span>
+            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+          </div>
+          <div className="bg-slate-900/80 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between">
+            <div>
+              <span className="text-[11px] text-slate-400 block">Memória RAM Atual</span>
+              <span className="text-base font-bold font-mono text-purple-400">{latestPoint.memory}%</span>
+            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-400" />
+          </div>
+          <div className="bg-slate-900/80 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between">
+            <div>
+              <span className="text-[11px] text-slate-400 block">Armazenamento (Disco Atual)</span>
+              <span className="text-base font-bold font-mono text-amber-400">{latestPoint.disk}%</span>
+            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
