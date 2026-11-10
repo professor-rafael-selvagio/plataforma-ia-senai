@@ -27,7 +27,7 @@ import {
   InMemoryProjectRepository,
 } from "./project.service";
 
-export const SUPERADMIN_EMAIL = "rselvagio@sp.senai.br";
+export const SUPERADMIN_EMAIL = env.SUPERADMIN_EMAIL;
 
 export async function collectSystemResources(): Promise<SystemResourcesResponse> {
   const cpus = os.cpus();
@@ -193,6 +193,7 @@ export class PostgresAdminService implements IAdminService {
          u.is_blocked,
          u.deleted_at,
          u.is_admin,
+         u.is_superadmin,
          u.created_at,
          u.last_seen_at,
          (u.last_seen_at >= now() - interval '3 minutes') as is_online,
@@ -203,12 +204,15 @@ export class PostgresAdminService implements IAdminService {
        FROM auth.users u
        LEFT JOIN public.conversations c ON c.user_id = u.id
        LEFT JOIN public.messages m ON m.user_id = u.id
-       GROUP BY u.id, u.email, u.raw_user_meta_data, u.user_type, u.ra, u.cpf, u.nif, u.is_blocked, u.deleted_at, u.is_admin, u.created_at, u.last_seen_at
+       GROUP BY u.id, u.email, u.raw_user_meta_data, u.user_type, u.ra, u.cpf, u.nif, u.is_blocked, u.deleted_at, u.is_admin, u.is_superadmin, u.created_at, u.last_seen_at
        ORDER BY (u.last_seen_at >= now() - interval '3 minutes') DESC, u.created_at DESC`
     );
 
     return res.rows.map((row) => {
-      const isSuperAdmin = row.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
+      const isSuperAdmin = Boolean(
+        row.is_superadmin ||
+        (Boolean(SUPERADMIN_EMAIL) && row.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
+      );
       const isAdmin = Boolean(isSuperAdmin || row.is_admin);
       const promptTokens = Number(row.total_prompt_tokens) || 0;
       const completionTokens = Number(row.total_completion_tokens) || 0;
@@ -222,6 +226,7 @@ export class PostgresAdminService implements IAdminService {
         cpf: row.cpf || undefined,
         nif: row.nif || undefined,
         is_admin: isAdmin,
+        is_superadmin: isSuperAdmin,
         is_blocked: Boolean(row.is_blocked),
         is_online: Boolean(row.is_online),
         last_seen_at: row.last_seen_at ? new Date(row.last_seen_at).toISOString() : new Date().toISOString(),
@@ -241,7 +246,7 @@ export class PostgresAdminService implements IAdminService {
     isAdmin: boolean
   ): Promise<AdminUserSummary> {
     const userCheck = await this.pool.query(
-      "SELECT id, email, is_admin FROM auth.users WHERE id = $1 LIMIT 1",
+      "SELECT id, email, is_admin, is_superadmin FROM auth.users WHERE id = $1 LIMIT 1",
       [targetUserId]
     );
 
@@ -250,12 +255,13 @@ export class PostgresAdminService implements IAdminService {
     }
 
     const targetUser = userCheck.rows[0];
-    if (
-      targetUser.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase() &&
-      !isAdmin
-    ) {
+    const isTargetSuperAdmin = Boolean(
+      targetUser.is_superadmin ||
+      (Boolean(SUPERADMIN_EMAIL) && targetUser.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
+    );
+    if (isTargetSuperAdmin && !isAdmin) {
       throw new ForbiddenError(
-        `Não é permitido revogar a permissão do administrador principal (${SUPERADMIN_EMAIL}).`
+        "Não é permitido revogar a permissão do administrador principal."
       );
     }
 
@@ -286,7 +292,7 @@ export class PostgresAdminService implements IAdminService {
     isBlocked: boolean
   ): Promise<AdminUserSummary> {
     const userCheck = await this.pool.query(
-      "SELECT id, email, is_blocked FROM auth.users WHERE id = $1 LIMIT 1",
+      "SELECT id, email, is_blocked, is_superadmin FROM auth.users WHERE id = $1 LIMIT 1",
       [targetUserId]
     );
 
@@ -295,12 +301,13 @@ export class PostgresAdminService implements IAdminService {
     }
 
     const targetUser = userCheck.rows[0];
-    if (
-      targetUser.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase() &&
-      isBlocked
-    ) {
+    const isTargetSuperAdmin = Boolean(
+      targetUser.is_superadmin ||
+      (Boolean(SUPERADMIN_EMAIL) && targetUser.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
+    );
+    if (isTargetSuperAdmin && isBlocked) {
       throw new ForbiddenError(
-        `Não é permitido bloquear o administrador principal (${SUPERADMIN_EMAIL}).`
+        "Não é permitido bloquear o administrador principal."
       );
     }
 
@@ -678,7 +685,10 @@ export class InMemoryAdminService implements IAdminService {
       const isOnline = Boolean(
         u.last_seen_at && now - new Date(u.last_seen_at).getTime() <= threeMinMs
       );
-      const isSuperAdmin = u.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
+      const isSuperAdmin = Boolean(
+        u.is_superadmin ||
+        (Boolean(SUPERADMIN_EMAIL) && u.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
+      );
       const isAdmin = Boolean(isSuperAdmin || u.is_admin);
 
       return {
@@ -690,6 +700,7 @@ export class InMemoryAdminService implements IAdminService {
         cpf: u.cpf,
         nif: u.nif,
         is_admin: isAdmin,
+        is_superadmin: isSuperAdmin,
         is_blocked: Boolean(u.is_blocked),
         is_online: isOnline,
         last_seen_at: u.last_seen_at || new Date().toISOString(),
@@ -715,12 +726,13 @@ export class InMemoryAdminService implements IAdminService {
       throw new NotFoundError("Usuário alvo não encontrado.");
     }
 
-    if (
-      targetUser.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase() &&
-      !isAdmin
-    ) {
+    const isTargetSuperAdmin = Boolean(
+      targetUser.is_superadmin ||
+      (Boolean(SUPERADMIN_EMAIL) && targetUser.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
+    );
+    if (isTargetSuperAdmin && !isAdmin) {
       throw new ForbiddenError(
-        `Não é permitido revogar a permissão do administrador principal (${SUPERADMIN_EMAIL}).`
+        "Não é permitido revogar a permissão do administrador principal."
       );
     }
 
@@ -750,12 +762,13 @@ export class InMemoryAdminService implements IAdminService {
       throw new NotFoundError("Usuário alvo não encontrado.");
     }
 
-    if (
-      targetUser.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase() &&
-      isBlocked
-    ) {
+    const isTargetSuperAdmin = Boolean(
+      targetUser.is_superadmin ||
+      (Boolean(SUPERADMIN_EMAIL) && targetUser.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
+    );
+    if (isTargetSuperAdmin && isBlocked) {
       throw new ForbiddenError(
-        `Não é permitido bloquear o administrador principal (${SUPERADMIN_EMAIL}).`
+        "Não é permitido bloquear o administrador principal."
       );
     }
 

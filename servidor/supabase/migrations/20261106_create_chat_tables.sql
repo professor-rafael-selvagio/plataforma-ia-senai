@@ -19,6 +19,7 @@ create table if not exists auth.users (
     cpf text,
     nif text,
     is_admin boolean not null default false,
+    is_superadmin boolean not null default false,
     last_seen_at timestamptz not null default now(),
     deleted_at timestamptz default null,
     created_at timestamptz not null default now(),
@@ -82,15 +83,19 @@ begin
     ) then
         alter table auth.users add column is_blocked boolean default false;
     end if;
+
+    if not exists (
+        select 1 from information_schema.columns 
+        where table_schema = 'auth' and table_name = 'users' and column_name = 'is_superadmin'
+    ) then
+        alter table auth.users add column is_superadmin boolean default false;
+    end if;
 end $$;
 
 -- Índices únicos parciais para evitar duplicidade de RA, CPF e NIF
 create unique index if not exists idx_users_unique_ra on auth.users (lower(ra)) where ra is not null and deleted_at is null;
 create unique index if not exists idx_users_unique_cpf on auth.users (lower(cpf)) where cpf is not null and deleted_at is null;
 create unique index if not exists idx_users_unique_nif on auth.users (lower(nif)) where nif is not null and deleted_at is null;
-
--- Concede permissão de administrador garantida para rselvagio@sp.senai.br e define seu NIF
-update auth.users set is_admin = true, user_type = 'funcionario', nif = '1085920', is_blocked = false where lower(email) = 'rselvagio@sp.senai.br';
 
 -- Função auxiliar auth.uid() para compatibilidade de políticas de RLS
 create or replace function auth.uid() returns uuid as $$

@@ -1,11 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import { ForbiddenError, UnauthorizedError } from "../utils/errors";
+import { env } from "../config/env";
 
-export const SUPERADMIN_EMAIL = "rselvagio@sp.senai.br";
+export const SUPERADMIN_EMAIL = env.SUPERADMIN_EMAIL;
 
 /**
  * Middleware para restringir endpoints apenas a usuários com privilégios de administrador
- * ou ao superadministrador rselvagio@sp.senai.br.
+ * ou ao superadministrador configurado.
  */
 export function adminMiddleware(
   req: Request,
@@ -21,7 +22,9 @@ export function adminMiddleware(
   }
 
   const email = req.user.email?.toLowerCase();
-  const isSuperAdmin = email === SUPERADMIN_EMAIL.toLowerCase();
+  const isSuperAdmin =
+    req.user.is_superadmin === true ||
+    (Boolean(env.SUPERADMIN_EMAIL) && email === env.SUPERADMIN_EMAIL);
   const isAdmin = req.user.is_admin === true;
 
   if (!isSuperAdmin && !isAdmin) {

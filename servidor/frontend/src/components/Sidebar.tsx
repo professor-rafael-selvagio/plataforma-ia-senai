@@ -114,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Novo Chat</span>
           </button>
 
-          {(user?.is_admin || user?.email?.toLowerCase() === "rselvagio@sp.senai.br") && onOpenAdmin && (
+          {Boolean(user?.is_admin || user?.is_superadmin) && onOpenAdmin && (
             <button
               onClick={() => {
                 onOpenAdmin();

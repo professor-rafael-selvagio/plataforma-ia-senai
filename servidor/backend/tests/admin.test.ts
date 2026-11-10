@@ -90,11 +90,11 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
       expect(resLogs.status).toBe(403);
     });
 
-    it("deve permitir acesso para o superadministrador rselvagio@sp.senai.br", async () => {
+    it("deve permitir acesso para o superadministrador", async () => {
       const reg = await request(app).post("/api/auth/register").send({
         email: SUPERADMIN_EMAIL,
         password: "senhaSegura123",
-        name: "Prof. Rafael de Sena Selvagio",
+        name: "Administrador Geral",
         user_type: "funcionario",
         nif: "NIF0001",
       });
@@ -204,7 +204,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
       expect(demoteRes.body.data.user.is_admin).toBe(false);
     });
 
-    it("não deve permitir revogar a permissão do superadministrador rselvagio@sp.senai.br", async () => {
+    it("não deve permitir revogar a permissão do superadministrador", async () => {
       const adminReg = await request(app).post("/api/auth/register").send({
         email: SUPERADMIN_EMAIL,
         password: "senhaSegura123",
@@ -345,13 +345,13 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
 
   describe("PATCH /api/admin/users/:id/block (Bloqueio e Desbloqueio)", () => {
     it("deve permitir que o admin bloqueie e desbloqueie um usuário comum", async () => {
-      // 1. Admin se cadastra com NIF 1085920
+      // 1. Admin se cadastra
       const adminReg = await request(app).post("/api/auth/register").send({
         email: SUPERADMIN_EMAIL,
         password: "senhaSegura123",
-        name: "Prof. Rafael de Sena Selvagio",
+        name: "Administrador Geral",
         user_type: "funcionario",
-        nif: "1085920",
+        nif: "NIF-ADMIN-01",
       });
       const adminToken = adminReg.body.data.session.access_token;
 
@@ -408,13 +408,13 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
       expect(loginUnblockedRes.status).toBe(200);
     });
 
-    it("não deve permitir bloquear o superadministrador rselvagio@sp.senai.br", async () => {
+    it("não deve permitir bloquear o superadministrador", async () => {
       const adminReg = await request(app).post("/api/auth/register").send({
         email: SUPERADMIN_EMAIL,
         password: "senhaSegura123",
-        name: "Prof. Rafael de Sena Selvagio",
+        name: "Administrador Geral",
         user_type: "funcionario",
-        nif: "1085920",
+        nif: "NIF-ADMIN-01",
       });
       const adminToken = adminReg.body.data.session.access_token;
       const adminId = adminReg.body.data.user.id;
@@ -434,9 +434,9 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
       const adminReg = await request(app).post("/api/auth/register").send({
         email: SUPERADMIN_EMAIL,
         password: "senhaSegura123",
-        name: "Prof. Rafael de Sena Selvagio",
+        name: "Administrador Geral",
         user_type: "funcionario",
-        nif: "1085920",
+        nif: "NIF-ADMIN-01",
       });
       const adminToken = adminReg.body.data.session.access_token;
 
@@ -470,9 +470,9 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
       const adminReg = await request(app).post("/api/auth/register").send({
         email: SUPERADMIN_EMAIL,
         password: "senhaSegura123",
-        name: "Prof. Rafael de Sena Selvagio",
+        name: "Administrador Geral",
         user_type: "funcionario",
-        nif: "1085920",
+        nif: "NIF-ADMIN-01",
       });
       const adminToken = adminReg.body.data.session.access_token;
 
@@ -497,9 +497,9 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
       const adminReg = await request(app).post("/api/auth/register").send({
         email: SUPERADMIN_EMAIL,
         password: "senhaSegura123",
-        name: "Prof. Rafael de Sena Selvagio",
+        name: "Administrador Geral",
         user_type: "funcionario",
-        nif: "1085920",
+        nif: "NIF-ADMIN-01",
       });
       const adminToken = adminReg.body.data.session.access_token;
 
@@ -524,9 +524,9 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
       const adminReg = await request(app).post("/api/auth/register").send({
         email: SUPERADMIN_EMAIL,
         password: "senhaSegura123",
-        name: "Prof. Rafael de Sena Selvagio",
+        name: "Administrador Geral",
         user_type: "funcionario",
-        nif: "1085920",
+        nif: "NIF-ADMIN-01",
       });
       const adminToken = adminReg.body.data.session.access_token;
 

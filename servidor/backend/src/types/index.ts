@@ -95,6 +95,7 @@ export interface AuthUser {
   cpf?: string;
   nif?: string;
   is_admin?: boolean;
+  is_superadmin?: boolean;
   is_blocked?: boolean;
   last_seen_at?: string;
   deleted_at?: string | null;
@@ -154,6 +155,7 @@ export interface AdminUserSummary {
   cpf?: string;
   nif?: string;
   is_admin: boolean;
+  is_superadmin?: boolean;
   is_blocked?: boolean;
   is_online: boolean;
   last_seen_at: string;

@@ -35,6 +35,8 @@ services:
       - PORT=3000
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-ollama_secure_password_2026}@postgres:5432/${POSTGRES_DB:-ollama_db}
       - JWT_SECRET=${JWT_SECRET:-ollama_jwt_super_secret_key_change_me_in_prod}
+      - SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL:-admin@senai.br}
+      - SUPERADMIN_NIF=${SUPERADMIN_NIF:-0000000}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
       - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-600000}
       - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-30m}

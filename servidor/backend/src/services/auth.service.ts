@@ -101,20 +101,23 @@ export class PostgresAuthService implements IAuthService {
     // Hash da senha com bcrypt
     const passwordHash = await bcrypt.hash(input.password, 10);
     const metadata = input.name ? { name: input.name } : {};
-    const isAdmin = emailKey === "rselvagio@sp.senai.br";
+    const isSuperAdmin = Boolean(env.SUPERADMIN_EMAIL && emailKey === env.SUPERADMIN_EMAIL);
+    const isAdmin = isSuperAdmin;
+    const finalUserType: UserType = isSuperAdmin ? "funcionario" : userType;
+    const finalNif = isSuperAdmin ? (nif || env.SUPERADMIN_NIF) : nif;
 
     const insertResult = await this.pool.query(
-      `INSERT INTO auth.users (email, password_hash, raw_user_meta_data, is_admin, last_seen_at, user_type, ra, cpf, nif)
-       VALUES ($1, $2, $3, $4, now(), $5, $6, $7, $8)
-       RETURNING id, email, created_at, is_admin, last_seen_at, user_type, ra, cpf, nif`,
-      [emailKey, passwordHash, JSON.stringify(metadata), isAdmin, userType, ra, cpf, nif]
+      `INSERT INTO auth.users (email, password_hash, raw_user_meta_data, is_admin, is_superadmin, last_seen_at, user_type, ra, cpf, nif)
+       VALUES ($1, $2, $3, $4, $5, now(), $6, $7, $8, $9)
+       RETURNING id, email, created_at, is_admin, is_superadmin, last_seen_at, user_type, ra, cpf, nif`,
+      [emailKey, passwordHash, JSON.stringify(metadata), isAdmin, isSuperAdmin, finalUserType, ra, cpf, finalNif]
     );
 
     const user = insertResult.rows[0];
 
     // Geração de tokens JWT
     const access_token = jwt.sign(
-      { sub: user.id, email: user.email, role: "authenticated", name: input.name, is_admin: user.is_admin },
+      { sub: user.id, email: user.email, role: "authenticated", name: input.name, is_admin: user.is_admin, is_superadmin: user.is_superadmin },
       env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -132,7 +135,7 @@ export class PostgresAuthService implements IAuthService {
       action: "AUTH_REGISTER",
       resourceType: "user",
       resourceId: user.id,
-      details: { user_type: userType, has_ra: !!ra, has_cpf: !!cpf, has_nif: !!nif },
+      details: { user_type: finalUserType, has_ra: !!ra, has_cpf: !!cpf, has_nif: !!finalNif },
     });
 
     return {
@@ -146,6 +149,7 @@ export class PostgresAuthService implements IAuthService {
         cpf: user.cpf,
         nif: user.nif,
         is_admin: user.is_admin,
+        is_superadmin: Boolean(user.is_superadmin),
       },
       session: {
         access_token,
@@ -161,7 +165,7 @@ export class PostgresAuthService implements IAuthService {
     const emailKey = input.email.toLowerCase();
 
     const queryResult = await this.pool.query(
-      "SELECT id, email, password_hash, raw_user_meta_data, is_admin, last_seen_at, is_blocked, user_type, ra, cpf, nif FROM auth.users WHERE lower(email) = lower($1) LIMIT 1",
+      "SELECT id, email, password_hash, raw_user_meta_data, is_admin, is_superadmin, last_seen_at, is_blocked, user_type, ra, cpf, nif FROM auth.users WHERE lower(email) = lower($1) LIMIT 1",
       [emailKey]
     );
 
@@ -185,7 +189,11 @@ export class PostgresAuthService implements IAuthService {
     }
 
     const name = user.raw_user_meta_data?.name;
-    const isAdmin = Boolean(user.is_admin || user.email?.toLowerCase() === "rselvagio@sp.senai.br");
+    const isSuperAdmin = Boolean(
+      user.is_superadmin ||
+      (Boolean(env.SUPERADMIN_EMAIL) && user.email?.toLowerCase() === env.SUPERADMIN_EMAIL)
+    );
+    const isAdmin = Boolean(isSuperAdmin || user.is_admin);
 
     // Atualiza última atividade de forma não bloqueante
     this.pool.query("UPDATE auth.users SET last_seen_at = now() WHERE id = $1", [user.id]).catch(() => {});
@@ -202,7 +210,7 @@ export class PostgresAuthService implements IAuthService {
       .catch(() => {});
 
     const access_token = jwt.sign(
-      { sub: user.id, email: user.email, role: "authenticated", name, is_admin: isAdmin },
+      { sub: user.id, email: user.email, role: "authenticated", name, is_admin: isAdmin, is_superadmin: isSuperAdmin },
       env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -219,7 +227,12 @@ export class PostgresAuthService implements IAuthService {
         email: user.email,
         name,
         role: "authenticated",
+        user_type: user.user_type,
+        ra: user.ra,
+        cpf: user.cpf,
+        nif: user.nif,
         is_admin: isAdmin,
+        is_superadmin: isSuperAdmin,
       },
       session: {
         access_token,
@@ -348,7 +361,7 @@ export class PostgresAuthService implements IAuthService {
 
   public async getProfile(userId: string): Promise<AuthUser> {
     const userRes = await this.pool.query(
-      "SELECT id, email, raw_user_meta_data, is_admin, last_seen_at, user_type, ra, cpf, nif, is_blocked FROM auth.users WHERE id = $1 LIMIT 1",
+      "SELECT id, email, raw_user_meta_data, is_admin, is_superadmin, last_seen_at, user_type, ra, cpf, nif, is_blocked FROM auth.users WHERE id = $1 LIMIT 1",
       [userId]
     );
 
@@ -358,7 +371,11 @@ export class PostgresAuthService implements IAuthService {
 
     const user = userRes.rows[0];
     const name = user.raw_user_meta_data?.name;
-    const isAdmin = Boolean(user.is_admin || user.email?.toLowerCase() === "rselvagio@sp.senai.br");
+    const isSuperAdmin = Boolean(
+      user.is_superadmin ||
+      (Boolean(env.SUPERADMIN_EMAIL) && user.email?.toLowerCase() === env.SUPERADMIN_EMAIL)
+    );
+    const isAdmin = Boolean(isSuperAdmin || user.is_admin);
 
     return {
       id: user.id,
@@ -366,6 +383,7 @@ export class PostgresAuthService implements IAuthService {
       name: name || undefined,
       role: "authenticated",
       is_admin: isAdmin,
+      is_superadmin: isSuperAdmin,
       is_blocked: Boolean(user.is_blocked),
       user_type: user.user_type,
       ra: user.ra,
@@ -549,6 +567,7 @@ export class InMemoryAuthService implements IAuthService {
       cpf?: string;
       nif?: string;
       is_admin?: boolean;
+      is_superadmin?: boolean;
       is_blocked?: boolean;
       last_seen_at?: string;
       deleted_at?: string | null;
@@ -600,9 +619,12 @@ export class InMemoryAuthService implements IAuthService {
       .createHash("sha256")
       .update(input.password)
       .digest("hex");
-    const isAdmin = emailKey === "rselvagio@sp.senai.br";
-    const finalUserType: UserType = isAdmin ? "funcionario" : userType;
-    const finalNif = isAdmin ? (nif || "1085920") : nif;
+    const isSuperAdmin = Boolean(
+      env.SUPERADMIN_EMAIL && emailKey === env.SUPERADMIN_EMAIL
+    );
+    const isAdmin = isSuperAdmin;
+    const finalUserType: UserType = isSuperAdmin ? "funcionario" : userType;
+    const finalNif = isSuperAdmin ? (nif || env.SUPERADMIN_NIF) : nif;
     const now = new Date().toISOString();
 
     this.users.set(emailKey, {
@@ -615,6 +637,7 @@ export class InMemoryAuthService implements IAuthService {
       cpf,
       nif: finalNif,
       is_admin: isAdmin,
+      is_superadmin: isSuperAdmin,
       is_blocked: false,
       last_seen_at: now,
       created_at: now,
@@ -626,7 +649,7 @@ export class InMemoryAuthService implements IAuthService {
       action: "AUTH_REGISTER",
       resourceType: "user",
       resourceId: id,
-      details: { user_type: userType, has_ra: !!ra, has_cpf: !!cpf, has_nif: !!nif },
+      details: { user_type: finalUserType, has_ra: !!ra, has_cpf: !!cpf, has_nif: !!finalNif },
     });
 
     return {
@@ -635,11 +658,12 @@ export class InMemoryAuthService implements IAuthService {
         email: emailKey,
         name: input.name,
         role: "authenticated",
-        user_type: userType,
+        user_type: finalUserType,
         ra,
         cpf,
-        nif,
+        nif: finalNif,
         is_admin: isAdmin,
+        is_superadmin: isSuperAdmin,
         last_seen_at: now,
       },
       session: {
@@ -669,7 +693,11 @@ export class InMemoryAuthService implements IAuthService {
     }
 
     user.last_seen_at = new Date().toISOString();
-    const isAdmin = Boolean(user.is_admin || user.email === "rselvagio@sp.senai.br");
+    const isSuperAdmin = Boolean(
+      user.is_superadmin ||
+      (Boolean(env.SUPERADMIN_EMAIL) && user.email.toLowerCase() === env.SUPERADMIN_EMAIL)
+    );
+    const isAdmin = Boolean(isSuperAdmin || user.is_admin);
 
     await getAuditService().log({
       userId: user.id,
@@ -690,6 +718,7 @@ export class InMemoryAuthService implements IAuthService {
         cpf: user.cpf,
         nif: user.nif,
         is_admin: isAdmin,
+        is_superadmin: isSuperAdmin,
         last_seen_at: user.last_seen_at,
       },
       session: {
@@ -780,6 +809,7 @@ export class InMemoryAuthService implements IAuthService {
       cpf?: string;
       nif?: string;
       is_admin?: boolean;
+      is_superadmin?: boolean;
       is_blocked?: boolean;
       last_seen_at?: string;
       created_at: string;
@@ -797,7 +827,11 @@ export class InMemoryAuthService implements IAuthService {
     }
 
     foundUser.name = input.name;
-    const isAdmin = Boolean(foundUser.is_admin || foundUser.email === "rselvagio@sp.senai.br");
+    const isSuperAdmin = Boolean(
+      foundUser.is_superadmin ||
+      (Boolean(env.SUPERADMIN_EMAIL) && foundUser.email.toLowerCase() === env.SUPERADMIN_EMAIL)
+    );
+    const isAdmin = Boolean(isSuperAdmin || foundUser.is_admin);
 
     return {
       id: foundUser.id,
@@ -809,6 +843,7 @@ export class InMemoryAuthService implements IAuthService {
       cpf: foundUser.cpf,
       nif: foundUser.nif,
       is_admin: isAdmin,
+      is_superadmin: isSuperAdmin,
       last_seen_at: foundUser.last_seen_at,
     };
   }
@@ -824,6 +859,7 @@ export class InMemoryAuthService implements IAuthService {
       cpf?: string;
       nif?: string;
       is_admin?: boolean;
+      is_superadmin?: boolean;
       is_blocked?: boolean;
       last_seen_at?: string;
       created_at: string;
@@ -840,7 +876,11 @@ export class InMemoryAuthService implements IAuthService {
       throw new UnauthorizedError("Usuário não encontrado.");
     }
 
-    const isAdmin = Boolean(foundUser.is_admin || foundUser.email === "rselvagio@sp.senai.br");
+    const isSuperAdmin = Boolean(
+      foundUser.is_superadmin ||
+      (Boolean(env.SUPERADMIN_EMAIL) && foundUser.email.toLowerCase() === env.SUPERADMIN_EMAIL)
+    );
+    const isAdmin = Boolean(isSuperAdmin || foundUser.is_admin);
 
     return {
       id: foundUser.id,
@@ -852,6 +892,7 @@ export class InMemoryAuthService implements IAuthService {
       cpf: foundUser.cpf,
       nif: foundUser.nif,
       is_admin: isAdmin,
+      is_superadmin: isSuperAdmin,
       is_blocked: Boolean(foundUser.is_blocked),
       last_seen_at: foundUser.last_seen_at,
     };

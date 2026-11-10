@@ -53,8 +53,6 @@ interface AdminDashboardProps {
   onBackToChat: () => void;
 }
 
-const SUPERADMIN_EMAIL = "rselvagio@sp.senai.br";
-
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToChat }) => {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<
@@ -168,11 +166,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToChat }) 
   }
 
   const handleToggleAdminRole = (targetUser: AdminUser) => {
-    if (targetUser.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase() && targetUser.is_admin) {
+    if (targetUser.is_superadmin && targetUser.is_admin) {
       setModalConfig({
         isOpen: true,
         title: "Ação Não Permitida",
-        message: `Não é permitido revogar a permissão do Administrador Principal (${SUPERADMIN_EMAIL}).`,
+        message: "Não é permitido revogar a permissão do Administrador Principal.",
         variant: "danger",
         isAlert: true,
         confirmText: "Entendido",
@@ -404,11 +402,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToChat }) 
   };
 
   const handleToggleBlockUser = (targetUser: AdminUser) => {
-    if (targetUser.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase()) {
+    if (targetUser.is_superadmin) {
       setModalConfig({
         isOpen: true,
         title: "Ação Não Permitida",
-        message: `Não é permitido bloquear o Administrador Principal (${SUPERADMIN_EMAIL}).`,
+        message: "Não é permitido bloquear o Administrador Principal.",
         variant: "danger",
         isAlert: true,
         confirmText: "Entendido",
@@ -947,8 +945,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToChat }) 
                       </tr>
                     ) : (
                       filteredUsers.map((u) => {
-                        const isSuperAdmin =
-                          u.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
+                        const isSuperAdmin = Boolean(u.is_superadmin);
 
                         return (
                           <tr key={u.id} className="hover:bg-slate-800/30 transition-colors">

@@ -73,8 +73,14 @@ export async function authMiddleware(
         return next(new UnauthorizedError("Token de autenticação inválido ou expirado."));
       }
 
+      const isSuperAdmin = Boolean(
+        (Boolean(env.SUPERADMIN_EMAIL) && data.user.email?.toLowerCase() === env.SUPERADMIN_EMAIL) ||
+        data.user.app_metadata?.is_superadmin ||
+        data.user.user_metadata?.is_superadmin
+      );
+
       const isAdmin = Boolean(
-        data.user.email?.toLowerCase() === "rselvagio@sp.senai.br" ||
+        isSuperAdmin ||
         data.user.app_metadata?.is_admin ||
         data.user.user_metadata?.is_admin
       );
@@ -85,6 +91,7 @@ export async function authMiddleware(
         name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,
         role: data.user.role,
         is_admin: isAdmin,
+        is_superadmin: isSuperAdmin,
         app_metadata: data.user.app_metadata,
         user_metadata: data.user.user_metadata,
       };
@@ -111,17 +118,25 @@ export async function authMiddleware(
         role?: string;
         name?: string;
         is_admin?: boolean;
+        is_superadmin?: boolean;
       };
-
-      const isAdmin = Boolean(
-        decoded.is_admin ||
-        decoded.email?.toLowerCase() === "rselvagio@sp.senai.br"
-      );
 
       const profile = await getAuthService().getProfile(decoded.sub).catch(() => null);
       if (profile?.is_blocked) {
         return next(new ForbiddenError("Sua conta de usuário foi bloqueada pelo administrador."));
       }
+
+      const isSuperAdmin = Boolean(
+        profile?.is_superadmin ||
+        decoded.is_superadmin ||
+        (Boolean(env.SUPERADMIN_EMAIL) && decoded.email?.toLowerCase() === env.SUPERADMIN_EMAIL)
+      );
+
+      const isAdmin = Boolean(
+        isSuperAdmin ||
+        profile?.is_admin ||
+        decoded.is_admin
+      );
 
       req.user = {
         id: decoded.sub,
@@ -129,6 +144,7 @@ export async function authMiddleware(
         name: decoded.name || undefined,
         role: decoded.role || "authenticated",
         is_admin: isAdmin,
+        is_superadmin: isSuperAdmin,
         is_blocked: Boolean(profile?.is_blocked),
         user_metadata: { name: decoded.name },
       };
@@ -168,8 +184,12 @@ export async function authMiddleware(
   let cpf: string | undefined = undefined;
   let nif: string | undefined = undefined;
   let isBlocked = false;
+  let isSuperAdmin = Boolean(
+    (Boolean(env.SUPERADMIN_EMAIL) && fallbackEmail.toLowerCase() === env.SUPERADMIN_EMAIL) ||
+    req.headers["x-test-is-superadmin"] === "true"
+  );
   let isAdmin = Boolean(
-    fallbackEmail.toLowerCase() === "rselvagio@sp.senai.br" ||
+    isSuperAdmin ||
     req.headers["x-test-is-admin"] === "true"
   );
 
@@ -186,9 +206,14 @@ export async function authMiddleware(
       cpf = profile.cpf;
       nif = profile.nif;
       isBlocked = Boolean(profile.is_blocked);
+      isSuperAdmin = Boolean(
+        profile.is_superadmin ||
+        (Boolean(env.SUPERADMIN_EMAIL) && fallbackEmail.toLowerCase() === env.SUPERADMIN_EMAIL) ||
+        req.headers["x-test-is-superadmin"] === "true"
+      );
       isAdmin = Boolean(
+        isSuperAdmin ||
         profile.is_admin ||
-        fallbackEmail.toLowerCase() === "rselvagio@sp.senai.br" ||
         req.headers["x-test-is-admin"] === "true"
       );
     }
@@ -209,6 +234,7 @@ export async function authMiddleware(
     nif,
     role: "authenticated",
     is_admin: isAdmin,
+    is_superadmin: isSuperAdmin,
     is_blocked: isBlocked,
   };
 

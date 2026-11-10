@@ -29,7 +29,7 @@
 ---
 
 ## Global Constraints
-- `rselvagio@sp.senai.br` é superadministrador garantido e classificado como Funcionário.
+- `process.env.SUPERADMIN_EMAIL` é superadministrador garantido e classificado como Funcionário.
 - Aluno deve obrigatoriamente fornecer RA ou CPF; Funcionário deve obrigatoriamente fornecer NIF.
 - Nenhum usuário pode compartilhar o mesmo RA, CPF ou NIF no sistema.
 - Exclusões nunca apagam fisicamente linhas do banco (*soft delete* com `deleted_at`).

@@ -52,6 +52,7 @@ export async function initializeDatabase(pool: Pool): Promise<void> {
         cpf text,
         nif text,
         is_admin boolean NOT NULL DEFAULT false,
+        is_superadmin boolean NOT NULL DEFAULT false,
         last_seen_at timestamptz NOT NULL DEFAULT now(),
         deleted_at timestamptz DEFAULT NULL,
         created_at timestamptz NOT NULL DEFAULT now(),
@@ -115,15 +116,19 @@ export async function initializeDatabase(pool: Pool): Promise<void> {
         ) THEN
             ALTER TABLE auth.users ADD COLUMN is_blocked boolean DEFAULT false;
         END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_schema = 'auth' AND table_name = 'users' AND column_name = 'is_superadmin'
+        ) THEN
+            ALTER TABLE auth.users ADD COLUMN is_superadmin boolean DEFAULT false;
+        END IF;
     END $$;
 
     -- Índices únicos parciais para evitar duplicidade de RA, CPF e NIF
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_unique_ra ON auth.users (lower(ra)) WHERE ra IS NOT NULL AND deleted_at IS NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_unique_cpf ON auth.users (lower(cpf)) WHERE cpf IS NOT NULL AND deleted_at IS NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_unique_nif ON auth.users (lower(nif)) WHERE nif IS NOT NULL AND deleted_at IS NULL;
-
-    -- Concede permissão de administrador garantida para rselvagio@sp.senai.br e define seu NIF
-    UPDATE auth.users SET is_admin = true, user_type = 'funcionario', nif = '1085920', is_blocked = false WHERE lower(email) = 'rselvagio@sp.senai.br';
 
     CREATE TABLE IF NOT EXISTS public.projects (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -258,6 +263,17 @@ export async function initializeDatabase(pool: Pool): Promise<void> {
   `;
 
   await pool.query(migrationSql);
+
+  // Inicializa ou atualiza as permissões do superadministrador configurado via variável de ambiente
+  if (env.SUPERADMIN_EMAIL) {
+    await pool.query(
+      `UPDATE auth.users 
+       SET is_admin = true, is_superadmin = true, user_type = 'funcionario', nif = COALESCE(nif, $2), is_blocked = false 
+       WHERE lower(email) = lower($1)`,
+      [env.SUPERADMIN_EMAIL, env.SUPERADMIN_NIF]
+    );
+  }
+
   logger.info("Schema do PostgreSQL sincronizado com sucesso!");
 }
 
