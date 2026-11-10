@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implementar o bloqueio e desbloqueio de usuários com auditoria completa; atualizar o NIF do superadministrador para process.env.SUPERADMIN_NIF; tornar os cards da Visão Geral clicáveis (com gráficos detalhados de tokens de entrada vs. saída e dia de pico); e criar uma 5ª aba dedicada para monitoramento em tempo real dos recursos do servidor (CPU, Memória RAM e Armazenamento).
+**Goal:** Implementar o bloqueio e desbloqueio de usuários com auditoria completa; atualizar o NIF do superadministrador para NIF do superadministrador; tornar os cards da Visão Geral clicáveis (com gráficos detalhados de tokens de entrada vs. saída e dia de pico); e criar uma 5ª aba dedicada para monitoramento em tempo real dos recursos do servidor (CPU, Memória RAM e Armazenamento).
 
 **Architecture:**
 - **PostgreSQL / Migrações**:
-  - Atualização do NIF do superadministrador `process.env.SUPERADMIN_EMAIL` para `'process.env.SUPERADMIN_NIF'`.
+  - Atualização do NIF do superadministrador `superadministrador (banco de dados)` para `'NIF do superadministrador'`.
   - Adição da coluna `is_blocked boolean default false` em `auth.users`.
 - **Backend (Express + TypeScript)**:
   - `PATCH /api/admin/users/:id/block`: ativa/desativa bloqueio de acesso e gera logs `USER_BLOCK` / `USER_UNBLOCK`.
   - Barramento imediato em `login` e `authMiddleware` com código 403 Forbidden caso o usuário esteja bloqueado.
-  - Proteção garantida para que o superadmin `process.env.SUPERADMIN_EMAIL` não possa ser bloqueado.
+  - Proteção garantida para que o superadmin `superadministrador (banco de dados)` não possa ser bloqueado.
   - `GET /api/admin/tokens/analytics`: agregação diária de tokens de entrada vs saída, dia de pico e métricas de uso.
   - `GET /api/admin/system-resources`: leitura de CPU (`os.cpus`, loadavg), Memória (`os.totalmem`, `os.freemem`) e Disco (`fs.promises.statfs`).
 - **Frontend (React + Tailwind CSS)**:
@@ -25,7 +25,7 @@
 ---
 
 ## Global Constraints
-- `process.env.SUPERADMIN_EMAIL` tem NIF fixado em `process.env.SUPERADMIN_NIF` e nunca pode ser bloqueado nem rebaixado.
+- `superadministrador (banco de dados)` tem NIF fixado em `NIF do superadministrador` e nunca pode ser bloqueado nem rebaixado.
 - Usuários bloqueados não conseguem efetuar login nem utilizar tokens JWT ativos (retorna 403 Forbidden).
 - Qualquer bloqueio ou desbloqueio deve gerar log no serviço de auditoria (`audit_logs`).
 - Todas as rotas de sistema e administração são protegidas por `adminMiddleware` (401/403).
@@ -38,7 +38,7 @@
 ### Task 1: Banco de Dados, NIF do Superadmin e Coluna `is_blocked`
 - [x] Atualizar `servidor/supabase/migrations/20261106_create_chat_tables.sql` e `servidor/backend/src/config/database.ts`:
   - Adicionar coluna `is_blocked boolean default false` em `auth.users`.
-  - Definir `nif = 'process.env.SUPERADMIN_NIF'` para `process.env.SUPERADMIN_EMAIL`.
+  - Definir `nif = 'NIF do superadministrador'` para `superadministrador (banco de dados)`.
 - [x] Atualizar tipos em `servidor/backend/src/types/index.ts`:
   - Adicionar `is_blocked?: boolean` em `AuthUser` e `AdminUserSummary`.
   - Adicionar interfaces `SystemResourcesResponse` e `TokenAnalyticsResponse`.
@@ -48,7 +48,7 @@
   - Criar `blockUserSchema = z.object({ is_blocked: z.boolean() })`.
 - [x] Atualizar `servidor/backend/src/services/admin.service.ts`:
   - Adicionar método `blockUser(adminUserId: string, targetUserId: string, isBlocked: boolean): Promise<AdminUserSummary>`.
-  - Impedir bloqueio de `process.env.SUPERADMIN_EMAIL` com `ForbiddenError`.
+  - Impedir bloqueio de `superadministrador (banco de dados)` com `ForbiddenError`.
   - Registrar log `USER_BLOCK` ou `USER_UNBLOCK` no `getAuditService()`.
   - Atualizar `getUsers()` para retornar `is_blocked`.
 - [x] Atualizar `servidor/backend/src/controllers/admin.controller.ts` e `servidor/backend/src/routes/admin.routes.ts`:
@@ -69,7 +69,7 @@
 - [x] Atualizar e expandir `servidor/backend/tests/admin.test.ts`:
   - Testar bloqueio de usuário comum e verificação do status `is_blocked: true`.
   - Testar desbloqueio de usuário comum.
-  - Testar tentativa de bloquear `process.env.SUPERADMIN_EMAIL` (deve retornar 403 Forbidden).
+  - Testar tentativa de bloquear `superadministrador (banco de dados)` (deve retornar 403 Forbidden).
   - Testar que usuário bloqueado não consegue fazer login (retorna 403).
   - Testar endpoint `GET /api/admin/system-resources` (retorna cpu, memory, disk, uptime).
   - Testar endpoint `GET /api/admin/tokens/analytics` (retorna breakdown diário e pico).
@@ -96,7 +96,7 @@
 - [x] Atualizar `servidor/frontend/src/pages/AdminDashboard.tsx`:
   - Adicionar badge de status "Bloqueado" quando `u.is_blocked`.
   - Adicionar botão de ação "Bloquear" / "Desbloquear" com confirmação.
-  - Desabilitar opção de bloqueio para o superadmin `process.env.SUPERADMIN_EMAIL`.
+  - Desabilitar opção de bloqueio para o superadmin `superadministrador (banco de dados)`.
 
 ### Task 8: Frontend - 5ª Aba Dedicada "Recursos do Servidor"
 - [x] Atualizar `servidor/frontend/src/pages/AdminDashboard.tsx`:

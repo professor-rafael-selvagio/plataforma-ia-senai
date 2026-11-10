@@ -8,7 +8,6 @@ import {
 import {
   InMemoryAdminService,
   setAdminServiceForTesting,
-  SUPERADMIN_EMAIL,
 } from "../src/services/admin.service";
 import {
   defaultConversationService,
@@ -45,6 +44,23 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
     memoryProjRepo.clear();
     vi.restoreAllMocks();
   });
+
+  async function createSuperAdmin(email = "superadmin@teste.com", nif = "NIF-ADMIN") {
+    const reg = await request(app).post("/api/auth/register").send({
+      email,
+      password: "senhaSegura123",
+      name: "Administrador Geral",
+      user_type: "funcionario",
+      nif,
+    });
+    const id = reg.body.data.user.id;
+    memoryAuth.setSuperAdmin(id, true);
+    const login = await request(app).post("/api/auth/login").send({
+      email,
+      password: "senhaSegura123",
+    });
+    return { id, token: login.body.data.session.access_token, email };
+  }
 
   describe("Controle de Acesso às Rotas Administrativas", () => {
     it("deve rejeitar com 401 quando o cabeçalho Authorization não for enviado", async () => {
@@ -91,15 +107,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
     });
 
     it("deve permitir acesso para o superadministrador", async () => {
-      const reg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        name: "Administrador Geral",
-        user_type: "funcionario",
-        nif: "NIF0001",
-      });
-
-      const token = reg.body.data.session.access_token;
+      const { token } = await createSuperAdmin("superadmin@teste.com");
 
       const res = await request(app)
         .get("/api/admin/metrics")
@@ -119,14 +127,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
   describe("GET /api/admin/users (Listagem com Perfil, RA/NIF e Status)", () => {
     it("deve listar todos os usuários com campos de identificação e status", async () => {
       // Cadastra admin funcionário
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        name: "Prof. Rafael de Sena Selvagio",
-        user_type: "funcionario",
-        nif: "NIF-ADMIN",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken, email: adminEmail } = await createSuperAdmin("admin.list@teste.com", "NIF-ADMIN");
 
       // Cadastra aluno
       await request(app).post("/api/auth/register").send({
@@ -147,10 +148,11 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
       expect(res.body.data.users.length).toBe(2);
 
       const adminUser = res.body.data.users.find(
-        (u: { email: string }) => u.email === SUPERADMIN_EMAIL
+        (u: { email: string }) => u.email === adminEmail
       );
       expect(adminUser).toBeDefined();
       expect(adminUser.is_admin).toBe(true);
+      expect(adminUser.is_superadmin).toBe(true);
       expect(adminUser.user_type).toBe("funcionario");
       expect(adminUser.nif).toBe("NIF-ADMIN");
 
@@ -166,13 +168,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
   describe("PATCH /api/admin/users/:id/role (Concessão e Revogação de Administrador)", () => {
     it("deve conceder permissão de administrador para um usuário e depois revogar", async () => {
       // Admin
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        user_type: "funcionario",
-        nif: "NIF-ADMIN-ROLE",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken } = await createSuperAdmin("admin.role@teste.com", "NIF-ADMIN-ROLE");
 
       // Aluno a ser promovido
       const userReg = await request(app).post("/api/auth/register").send({
@@ -205,14 +201,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
     });
 
     it("não deve permitir revogar a permissão do superadministrador", async () => {
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        user_type: "funcionario",
-        nif: "NIF-SUPER",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
-      const superAdminId = adminReg.body.data.user.id;
+      const { id: superAdminId, token: adminToken } = await createSuperAdmin("superadmin.demote@teste.com", "NIF-SUPER");
 
       const res = await request(app)
         .patch(`/api/admin/users/${superAdminId}/role`)
@@ -227,13 +216,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
   describe("Lixeira do Administrador & Exclusão Lógica (/api/admin/deleted e /restore)", () => {
     it("deve exibir itens excluídos logicamente na lixeira e permitir sua restauração", async () => {
       // 1. Cadastra Admin
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        user_type: "funcionario",
-        nif: "NIF-LIXEIRA",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken } = await createSuperAdmin("admin.trash@teste.com", "NIF-LIXEIRA");
 
       // 2. Cadastra Aluno
       const studentReg = await request(app).post("/api/auth/register").send({
@@ -298,13 +281,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
   describe("Trilha de Auditoria (/api/admin/audit-logs)", () => {
     it("deve registrar ações e listá-las para o administrador", async () => {
       // 1. Admin se cadastra e acessa logs
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        user_type: "funcionario",
-        nif: "NIF-AUDIT",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken } = await createSuperAdmin("admin.audit@teste.com", "NIF-AUDIT");
 
       // 2. Consulta logs de auditoria
       const logsRes = await request(app)
@@ -346,14 +323,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
   describe("PATCH /api/admin/users/:id/block (Bloqueio e Desbloqueio)", () => {
     it("deve permitir que o admin bloqueie e desbloqueie um usuário comum", async () => {
       // 1. Admin se cadastra
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        name: "Administrador Geral",
-        user_type: "funcionario",
-        nif: "NIF-ADMIN-01",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken } = await createSuperAdmin("admin.block@teste.com", "NIF-ADMIN-01");
 
       // 2. Cadastra aluno
       const userReg = await request(app).post("/api/auth/register").send({
@@ -409,15 +379,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
     });
 
     it("não deve permitir bloquear o superadministrador", async () => {
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        name: "Administrador Geral",
-        user_type: "funcionario",
-        nif: "NIF-ADMIN-01",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
-      const adminId = adminReg.body.data.user.id;
+      const { id: adminId, token: adminToken } = await createSuperAdmin("superadmin.block@teste.com", "NIF-ADMIN-01");
 
       const res = await request(app)
         .patch(`/api/admin/users/${adminId}/block`)
@@ -431,14 +393,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
 
   describe("GET /api/admin/system-resources (Monitoramento do Servidor)", () => {
     it("deve retornar informações de CPU, memória, disco e uptime para o admin", async () => {
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        name: "Administrador Geral",
-        user_type: "funcionario",
-        nif: "NIF-ADMIN-01",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken } = await createSuperAdmin("admin.res@teste.com", "NIF-ADMIN-01");
 
       const res = await request(app)
         .get("/api/admin/system-resources")
@@ -467,14 +422,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
 
   describe("GET /api/admin/tokens/analytics (Análise de Consumo de Tokens)", () => {
     it("deve retornar resumo analítico de tokens com entrada vs saída e histórico", async () => {
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        name: "Administrador Geral",
-        user_type: "funcionario",
-        nif: "NIF-ADMIN-01",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken } = await createSuperAdmin("admin.analytics@teste.com", "NIF-ADMIN-01");
 
       const res = await request(app)
         .get("/api/admin/tokens/analytics")
@@ -494,14 +442,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
 
   describe("GET /api/admin/system-resources/history (Histórico Persistido a Cada 5 Minutos)", () => {
     it("deve retornar status 200 com array de medições históricas de recursos", async () => {
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        name: "Administrador Geral",
-        user_type: "funcionario",
-        nif: "NIF-ADMIN-01",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken } = await createSuperAdmin("admin.hist1@teste.com", "NIF-ADMIN-01");
 
       const res = await request(app)
         .get("/api/admin/system-resources/history?limit=5")
@@ -521,14 +462,7 @@ describe("Módulo Administrativo, Lixeira e Auditoria (/api/admin)", () => {
     });
 
     it("deve respeitar o parâmetro limit no histórico", async () => {
-      const adminReg = await request(app).post("/api/auth/register").send({
-        email: SUPERADMIN_EMAIL,
-        password: "senhaSegura123",
-        name: "Administrador Geral",
-        user_type: "funcionario",
-        nif: "NIF-ADMIN-01",
-      });
-      const adminToken = adminReg.body.data.session.access_token;
+      const { token: adminToken } = await createSuperAdmin("admin.hist2@teste.com", "NIF-ADMIN-01");
 
       const res = await request(app)
         .get("/api/admin/system-resources/history?limit=2")

@@ -263,17 +263,6 @@ export async function initializeDatabase(pool: Pool): Promise<void> {
   `;
 
   await pool.query(migrationSql);
-
-  // Inicializa ou atualiza as permissões do superadministrador configurado via variável de ambiente
-  if (env.SUPERADMIN_EMAIL) {
-    await pool.query(
-      `UPDATE auth.users 
-       SET is_admin = true, is_superadmin = true, user_type = 'funcionario', nif = COALESCE(nif, $2), is_blocked = false 
-       WHERE lower(email) = lower($1)`,
-      [env.SUPERADMIN_EMAIL, env.SUPERADMIN_NIF]
-    );
-  }
-
   logger.info("Schema do PostgreSQL sincronizado com sucesso!");
 }
 

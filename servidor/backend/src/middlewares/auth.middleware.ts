@@ -74,7 +74,6 @@ export async function authMiddleware(
       }
 
       const isSuperAdmin = Boolean(
-        (Boolean(env.SUPERADMIN_EMAIL) && data.user.email?.toLowerCase() === env.SUPERADMIN_EMAIL) ||
         data.user.app_metadata?.is_superadmin ||
         data.user.user_metadata?.is_superadmin
       );
@@ -128,8 +127,7 @@ export async function authMiddleware(
 
       const isSuperAdmin = Boolean(
         profile?.is_superadmin ||
-        decoded.is_superadmin ||
-        (Boolean(env.SUPERADMIN_EMAIL) && decoded.email?.toLowerCase() === env.SUPERADMIN_EMAIL)
+        decoded.is_superadmin
       );
 
       const isAdmin = Boolean(
@@ -184,14 +182,8 @@ export async function authMiddleware(
   let cpf: string | undefined = undefined;
   let nif: string | undefined = undefined;
   let isBlocked = false;
-  let isSuperAdmin = Boolean(
-    (Boolean(env.SUPERADMIN_EMAIL) && fallbackEmail.toLowerCase() === env.SUPERADMIN_EMAIL) ||
-    req.headers["x-test-is-superadmin"] === "true"
-  );
-  let isAdmin = Boolean(
-    isSuperAdmin ||
-    req.headers["x-test-is-admin"] === "true"
-  );
+  let isSuperAdmin = req.headers["x-test-is-superadmin"] === "true";
+  let isAdmin = isSuperAdmin || req.headers["x-test-is-admin"] === "true";
 
   try {
     const profile = await getAuthService().getProfile(fallbackId);
@@ -208,7 +200,6 @@ export async function authMiddleware(
       isBlocked = Boolean(profile.is_blocked);
       isSuperAdmin = Boolean(
         profile.is_superadmin ||
-        (Boolean(env.SUPERADMIN_EMAIL) && fallbackEmail.toLowerCase() === env.SUPERADMIN_EMAIL) ||
         req.headers["x-test-is-superadmin"] === "true"
       );
       isAdmin = Boolean(

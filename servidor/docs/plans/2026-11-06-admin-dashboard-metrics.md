@@ -2,10 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implementar uma página dedicada de Painel de Controle Administrativo (com acesso exclusivo para `process.env.SUPERADMIN_EMAIL` e administradores nomeados), gestão de permissões de administrador, monitoramento de usuários online em tempo real, métricas consolidadas de consumo de tokens (entrada e saída), e inclusão discreta dos créditos autorais nas telas de login e chat.
+**Goal:** Implementar uma página dedicada de Painel de Controle Administrativo (com acesso exclusivo para `superadministrador (banco de dados)` e administradores nomeados), gestão de permissões de administrador, monitoramento de usuários online em tempo real, métricas consolidadas de consumo de tokens (entrada e saída), e inclusão discreta dos créditos autorais nas telas de login e chat.
 
 **Architecture:**
-- **Banco de Dados (PostgreSQL / Supabase)**: Adicionar suporte a `is_admin` e `last_seen_at` na tabela `auth.users`. Garantir que `process.env.SUPERADMIN_EMAIL` seja sempre inicializado como administrador.
+- **Banco de Dados (PostgreSQL / Supabase)**: Adicionar suporte a `is_admin` e `last_seen_at` na tabela `auth.users`. Garantir que `superadministrador (banco de dados)` seja sempre inicializado como administrador.
 - **Armazenamento de Tokens**: Ao interagir com o Ollama, persistir `prompt_tokens` (tokens de entrada) e `completion_tokens` (tokens de saída) para cálculo consolidado por usuário e geral.
 - **Backend (Express + TypeScript)**:
   - Middleware `adminMiddleware` para proteção estrita de endpoints administrativos.
@@ -26,7 +26,7 @@
 ---
 
 ## Global Constraints
-- `process.env.SUPERADMIN_EMAIL` tem papel de administrador garantido nativamente no sistema.
+- `superadministrador (banco de dados)` tem papel de administrador garantido nativamente no sistema.
 - Superadministrador principal não pode ser rebaixado para evitar travamento do painel.
 - O tema segue a paleta vermelha SENAI (`brand-600` / `rose-400` / `slate-950`).
 - Compatibilidade total tanto com PostgreSQL local quanto com serviço em memória para testes.
@@ -40,7 +40,7 @@
 - [x] Atualizar `servidor/supabase/migrations/20261106_create_chat_tables.sql` e `servidor/backend/src/config/database.ts`:
   - Adicionar colunas `is_admin BOOLEAN NOT NULL DEFAULT false` e `last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()` em `auth.users`.
   - Adicionar colunas `prompt_tokens INTEGER DEFAULT 0` e `completion_tokens INTEGER DEFAULT 0` em `public.messages`.
-  - Criar gatilho/update para garantir que `email = 'process.env.SUPERADMIN_EMAIL'` receba `is_admin = true`.
+  - Criar gatilho/update para garantir que `email = 'superadministrador (banco de dados)'` receba `is_admin = true`.
 - [x] Atualizar tipos TypeScript em `servidor/backend/src/types/index.ts`:
   - `AuthUser`: incluir `is_admin?: boolean`, `last_seen_at?: string`.
   - Criar interfaces `AdminUserSummary`, `AdminMetricsResponse` e `UpdateUserRoleInput`.
@@ -55,11 +55,11 @@
 
 ### Task 3: Middleware e Serviço de Administração no Backend
 - [x] Criar `servidor/backend/src/middlewares/admin.middleware.ts`:
-  - Validar se `req.user` possui `is_admin === true` ou `email === 'process.env.SUPERADMIN_EMAIL'`; caso contrário, retornar `403 Forbidden`.
+  - Validar se `req.user` possui `is_admin === true` ou `email === 'superadministrador (banco de dados)'`; caso contrário, retornar `403 Forbidden`.
 - [x] Criar `servidor/backend/src/services/admin.service.ts`:
   - `getMetrics()`: Total de usuários, usuários online (< 3 min), total de conversas, total de mensagens, soma de tokens de entrada e saída.
   - `getUsers()`: Lista de todos os usuários com status online/offline, dados cadastrais e tokens consumidos.
-  - `updateUserRole(adminUserId, targetUserId, isAdmin)`: Atualiza `is_admin` do usuário, impedindo auto-revogação de `process.env.SUPERADMIN_EMAIL`.
+  - `updateUserRole(adminUserId, targetUserId, isAdmin)`: Atualiza `is_admin` do usuário, impedindo auto-revogação de `superadministrador (banco de dados)`.
 - [x] Implementar versões do serviço para PostgreSQL e para o modo InMemory (usado nos testes).
 
 ### Task 4: Controladores, Rotas e Testes de Backend
@@ -69,7 +69,7 @@
 - [x] Criar suíte de testes `servidor/backend/tests/admin.test.ts`:
   - Bloqueio 401 para requisição sem token.
   - Bloqueio 403 para usuário autenticado comum.
-  - Sucesso 200 para `process.env.SUPERADMIN_EMAIL` ou usuários administradores.
+  - Sucesso 200 para `superadministrador (banco de dados)` ou usuários administradores.
   - Testar concessão e revogação de permissão administrativa.
   - Testar retorno correto das métricas e contagem de tokens de entrada/saída.
 - [x] Executar `npm test` e `npm run build` no backend.
@@ -92,7 +92,7 @@
   - Tabela de Usuários com busca por nome/email e filtro de status (Todos / Apenas Online).
   - Ações para alternar papel de Administrador com confirmação e feedback visual imediato.
 - [x] Atualizar `servidor/frontend/src/components/Sidebar.tsx`:
-  - Se o usuário for administrador (`user.is_admin || user.email === 'process.env.SUPERADMIN_EMAIL'`), exibir botão de acesso rápido "Painel de Controle" com ícone de escudo.
+  - Se o usuário for administrador (`user.is_admin || user.email === 'superadministrador (banco de dados)'`), exibir botão de acesso rápido "Painel de Controle" com ícone de escudo.
 - [x] Atualizar `servidor/frontend/src/App.tsx`:
   - Gerenciar alternância de tela entre `"chat"` e `"admin"`.
 

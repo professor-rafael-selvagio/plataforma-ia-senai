@@ -27,8 +27,6 @@ import {
   InMemoryProjectRepository,
 } from "./project.service";
 
-export const SUPERADMIN_EMAIL = env.SUPERADMIN_EMAIL;
-
 export async function collectSystemResources(): Promise<SystemResourcesResponse> {
   const cpus = os.cpus();
   let totalIdle = 0;
@@ -209,10 +207,7 @@ export class PostgresAdminService implements IAdminService {
     );
 
     return res.rows.map((row) => {
-      const isSuperAdmin = Boolean(
-        row.is_superadmin ||
-        (Boolean(SUPERADMIN_EMAIL) && row.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
-      );
+      const isSuperAdmin = Boolean(row.is_superadmin);
       const isAdmin = Boolean(isSuperAdmin || row.is_admin);
       const promptTokens = Number(row.total_prompt_tokens) || 0;
       const completionTokens = Number(row.total_completion_tokens) || 0;
@@ -255,10 +250,7 @@ export class PostgresAdminService implements IAdminService {
     }
 
     const targetUser = userCheck.rows[0];
-    const isTargetSuperAdmin = Boolean(
-      targetUser.is_superadmin ||
-      (Boolean(SUPERADMIN_EMAIL) && targetUser.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
-    );
+    const isTargetSuperAdmin = Boolean(targetUser.is_superadmin);
     if (isTargetSuperAdmin && !isAdmin) {
       throw new ForbiddenError(
         "Não é permitido revogar a permissão do administrador principal."
@@ -301,10 +293,7 @@ export class PostgresAdminService implements IAdminService {
     }
 
     const targetUser = userCheck.rows[0];
-    const isTargetSuperAdmin = Boolean(
-      targetUser.is_superadmin ||
-      (Boolean(SUPERADMIN_EMAIL) && targetUser.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
-    );
+    const isTargetSuperAdmin = Boolean(targetUser.is_superadmin);
     if (isTargetSuperAdmin && isBlocked) {
       throw new ForbiddenError(
         "Não é permitido bloquear o administrador principal."
@@ -685,10 +674,7 @@ export class InMemoryAdminService implements IAdminService {
       const isOnline = Boolean(
         u.last_seen_at && now - new Date(u.last_seen_at).getTime() <= threeMinMs
       );
-      const isSuperAdmin = Boolean(
-        u.is_superadmin ||
-        (Boolean(SUPERADMIN_EMAIL) && u.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
-      );
+      const isSuperAdmin = Boolean(u.is_superadmin);
       const isAdmin = Boolean(isSuperAdmin || u.is_admin);
 
       return {
@@ -726,10 +712,7 @@ export class InMemoryAdminService implements IAdminService {
       throw new NotFoundError("Usuário alvo não encontrado.");
     }
 
-    const isTargetSuperAdmin = Boolean(
-      targetUser.is_superadmin ||
-      (Boolean(SUPERADMIN_EMAIL) && targetUser.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
-    );
+    const isTargetSuperAdmin = Boolean(targetUser.is_superadmin);
     if (isTargetSuperAdmin && !isAdmin) {
       throw new ForbiddenError(
         "Não é permitido revogar a permissão do administrador principal."
@@ -762,10 +745,7 @@ export class InMemoryAdminService implements IAdminService {
       throw new NotFoundError("Usuário alvo não encontrado.");
     }
 
-    const isTargetSuperAdmin = Boolean(
-      targetUser.is_superadmin ||
-      (Boolean(SUPERADMIN_EMAIL) && targetUser.email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase())
-    );
+    const isTargetSuperAdmin = Boolean(targetUser.is_superadmin);
     if (isTargetSuperAdmin && isBlocked) {
       throw new ForbiddenError(
         "Não é permitido bloquear o administrador principal."

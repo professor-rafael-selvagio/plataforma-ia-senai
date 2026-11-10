@@ -49,14 +49,6 @@ const envSchema = z.object({
     .string()
     .default("ollama_jwt_super_secret_key_change_me_in_prod")
     .transform((val) => val.trim()),
-  SUPERADMIN_EMAIL: z
-    .string()
-    .default("admin@senai.br")
-    .transform((val) => val.trim().toLowerCase()),
-  SUPERADMIN_NIF: z
-    .string()
-    .default("0000000")
-    .transform((val) => val.trim()),
   SUPABASE_URL: z
     .string()
     .optional()
